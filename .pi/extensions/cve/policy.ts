@@ -1,0 +1,64 @@
+// Mode policy: which tools are allowed in which CVE mode (pure, no filesystem access).
+import { branchFor, normalizeAdvisoryId } from "./ids.ts";
+
+export type Mode = "default" | "investigate" | "patch" | "invalid";
+
+export interface Decision {
+  block: boolean;
+  reason?: string;
+}
+
+const PATCH_ONLY = new Set(["cve_branch", "cve_commit_push"]);
+const CVE_TOOLS = new Set(["cve_scan", "cve_details", "cve_prior_fixes", "cve_report", ...PATCH_ONLY]);
+const SHELL_TOOLS = new Set(["bash", "powershell"]);
+
+/** Maps the --cve-mode flag value to a mode; unknown values become "invalid" (everything mutating is blocked). */
+export function parseMode(flag: unknown): Mode {
+  if (flag === undefined || flag === false || flag === "") return "default";
+  if (flag === "investigate" || flag === "patch") return flag;
+  return "invalid";
+}
+
+/** Directories (relative to the project) where edit/write are allowed in a mode. */
+export function writeRoots(mode: Mode): string[] {
+  switch (mode) {
+    case "default":
+      return ["src"];
+    case "investigate":
+      return ["reports"];
+    case "patch":
+      return ["targets", "reports"];
+    case "invalid":
+      return [];
+  }
+}
+
+/** Decides whether a tool call is allowed in a mode. Path containment for edit/write is checked separately. */
+export function decide(mode: Mode, toolName: string, input: Record<string, unknown>): Decision {
+  const deny = (reason: string): Decision => ({ block: true, reason: `ci-guard: ${reason}` });
+  if (mode === "invalid") {
+    if (toolName === "edit" || toolName === "write" || SHELL_TOOLS.has(toolName) || CVE_TOOLS.has(toolName)) {
+      return deny("invalid --cve-mode value (use investigate or patch); mutating tools are blocked");
+    }
+    return { block: false };
+  }
+  if (mode === "default") {
+    if (CVE_TOOLS.has(toolName)) return deny(`${toolName} requires --cve-mode investigate|patch`);
+    return { block: false };
+  }
+  if (SHELL_TOOLS.has(toolName)) return deny(`${toolName} is not allowed in ${mode} mode`);
+  if (PATCH_ONLY.has(toolName)) {
+    if (mode !== "patch") return deny(`${toolName} is only allowed in patch mode`);
+    if (branchFor(input.id) === undefined) {
+      return deny(`invalid id for branch (need cve/CVE-YYYY-NNNN or cve/GHSA-...), got ${JSON.stringify(input.id)}`);
+    }
+    if (toolName === "cve_commit_push" && (typeof input.message !== "string" || input.message.trim() === "")) {
+      return deny("cve_commit_push needs a non-empty commit message");
+    }
+    return { block: false };
+  }
+  if ((toolName === "cve_details" || toolName === "cve_report") && normalizeAdvisoryId(input.id) === undefined) {
+    return deny(`invalid advisory id ${JSON.stringify(input.id)}`);
+  }
+  return { block: false };
+}
