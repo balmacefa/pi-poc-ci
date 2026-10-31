@@ -1,0 +1,11 @@
+{
+  "name": "vuln-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fixture for the CVE workflow: pinned dependencies with known vulnerabilities",
+  "main": "index.js",
+  "dependencies": {
+    "lodash": "4.17.4",
+    "minimist": "1.2.0"
+  }
+}
