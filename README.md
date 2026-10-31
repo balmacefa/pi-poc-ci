@@ -45,6 +45,18 @@ The exit code follows the final `VERDICT:` line (0 PASS, 1 FAIL, 2 none). An inv
 
 Claude and Gemini are both configured. See [docs/MODELS.md](docs/MODELS.md) for authentication on the host and in Docker.
 
+## Agents
+
+pi (with Gemini/Claude) runs the guarded CVE flow. [IBM Bob](https://bob.ibm.com) is available as a
+second, general-purpose agent via `scripts/bob.sh` (needs `BOB_API_KEY` and network). Bob does not use
+pi's `cve_*` tools or the ci-guard, so it stays out of the offline CVE pipeline. See [docs/BOB.md](docs/BOB.md).
+
+```bash
+export BOB_API_KEY="..."
+scripts/bob.sh run "Reply with the single word: pong"
+scripts/bob.sh review security          # repo review; VERDICT exit code
+```
+
 ## Tests
 
 ```bash
@@ -67,6 +79,7 @@ cp .env.example .env                       # then fill in GEMINI_API_KEY and/or 
 docker compose build
 docker compose run --rm pi                 # interactive pi in /workspace
 docker compose --profile ci run --rm poc   # runs ./run-poc.sh all
+docker compose run --rm bob run "..."       # IBM Bob agent (needs BOB_API_KEY in .env)
 ```
 
 - `./` is bind-mounted at `/workspace`, so edits on the host and in the container are the same files.

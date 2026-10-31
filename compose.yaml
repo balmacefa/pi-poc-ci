@@ -9,12 +9,15 @@ x-pi: &pi
     context: .
     args:
       PI_VERSION: ${PI_VERSION:-latest}
+      BOB_VERSION: ${BOB_VERSION:-latest}
   image: pi-poc-ci:ubi9
   environment:
     GEMINI_API_KEY:
     ANTHROPIC_API_KEY:
+    ANTHROPIC_OAUTH_TOKEN:
     DEEPSEEK_API_KEY:
     OPENAI_API_KEY:
+    BOB_API_KEY:
     PI_OFFLINE: ${PI_OFFLINE:-0}
   volumes:
     # The project, editable from the host.
@@ -23,6 +26,8 @@ x-pi: &pi
     - ${PI_LOCAL_DIR:-../pi-harness-src/packages/coding-agent}:/opt/pi-local:ro
     # Pi settings, sessions and downloaded tools (fd, rg) live in a volume, not in your host ~/.pi/agent.
     - pi-agent-home:/home/pi/.pi/agent
+    # Bob's config, license consent and skills persist here (not in the host ~/.bob).
+    - bob-home:/home/pi/.bob
   tty: true
   stdin_open: true
 
@@ -36,5 +41,18 @@ services:
     entrypoint: ["bash"]
     command: ["./run-poc.sh", "all"]
 
+  # IBM Bob as an agent: docker compose run --rm bob run "<prompt>" (needs BOB_API_KEY).
+  bob:
+    <<: *pi
+    entrypoint: ["bash", "scripts/bob.sh"]
+
+  # Long-running container managed by scripts/manage.sh (start/stop/delete). Exec pi or bob inside it.
+  dev:
+    <<: *pi
+    container_name: pi-poc-ci-dev
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+
 volumes:
   pi-agent-home:
+  bob-home:
