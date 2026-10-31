@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./src"],
+      "description": "Read-only style access to src/ (disabled by default in the POC; set enabled to true to try it)",
+      "enabled": false
+    }
+  }
+}

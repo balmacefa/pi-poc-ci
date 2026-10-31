@@ -1,0 +1,40 @@
+# Dev environment for the pi POC.
+#   docker compose run --rm pi              interactive pi in /workspace
+#   docker compose run --rm pi -p "..."      one-shot, CI style
+#   docker compose run --rm poc              runs ./run-poc.sh (CI profile)
+# API keys are read from the host environment or from a local .env file (see .env.example).
+
+x-pi: &pi
+  build:
+    context: .
+    args:
+      PI_VERSION: ${PI_VERSION:-latest}
+  image: pi-poc-ci:ubi9
+  environment:
+    GEMINI_API_KEY:
+    ANTHROPIC_API_KEY:
+    DEEPSEEK_API_KEY:
+    OPENAI_API_KEY:
+    PI_OFFLINE: ${PI_OFFLINE:-0}
+  volumes:
+    # The project, editable from the host.
+    - ./:/workspace
+    # Local pi checkout (dist/bundle), read-only. Linked by default; set PI_LOCAL_DIR to another path.
+    - ${PI_LOCAL_DIR:-../pi-harness-src/packages/coding-agent}:/opt/pi-local:ro
+    # Pi settings, sessions and downloaded tools (fd, rg) live in a volume, not in your host ~/.pi/agent.
+    - pi-agent-home:/home/pi/.pi/agent
+  tty: true
+  stdin_open: true
+
+services:
+  pi:
+    <<: *pi
+
+  poc:
+    <<: *pi
+    profiles: ["ci"]
+    entrypoint: ["bash"]
+    command: ["./run-poc.sh", "all"]
+
+volumes:
+  pi-agent-home:

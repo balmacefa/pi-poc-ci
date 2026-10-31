@@ -1,0 +1,3 @@
+.env
+.pi/ci-audit.jsonl
+node_modules
