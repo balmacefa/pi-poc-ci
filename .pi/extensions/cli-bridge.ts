@@ -324,6 +324,14 @@ function textModel(id: string, name: string, contextWindow: number) {
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
+	// Interruptor de deshabilitación: con CLI_BRIDGE_DISABLE=1 (o true) el puente no
+	// registra ningún proveedor. Se usa en CI/Docker, donde el binario `claude` NO
+	// acepta el token OAuth de suscripción (solo ~/.claude o una ANTHROPIC_API_KEY
+	// real); ahí se usa el proveedor NATIVO `anthropic`. El código queda intacto para
+	// el host, donde el puente sí aprovecha las suscripciones.
+	const disable = process.env.CLI_BRIDGE_DISABLE;
+	if (disable === "1" || disable === "true") return;
+
 	// ---- Claude CLI (suscripción Claude Pro/Max; en CI usa ANTHROPIC_API_KEY) ----
 	// Solo se registra si el binario `claude` está disponible.
 	if (binExists(process.env.CLAUDE_CLI_BIN || "claude")) {
