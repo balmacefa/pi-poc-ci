@@ -1,0 +1,11 @@
+{
+  "name": "demo-swarm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Escenario ficticio para validar el enjambre CVE: deps npm vulnerables + imagen base antigua",
+  "main": "index.js",
+  "dependencies": {
+    "lodash": "4.17.11",
+    "minimist": "1.2.0"
+  }
+}
