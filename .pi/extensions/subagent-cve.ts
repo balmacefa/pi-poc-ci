@@ -1,31 +1,20 @@
-// Wrapper for the subagent tool: injects --cve-mode patch to all subagent spawns.
-// This ensures subagents run with proper write guards (targets/ + reports/ only).
+// Propagates CVE patch mode to spawned subagents.
+//
+// Problem: the native `subagent` tool spawns a child `pi` process WITHOUT the --cve-mode flag, so the
+// child would run in "default" mode. In default mode the git tools cve_branch / cve_commit_push are
+// BLOCKED, so a cve-fixer subagent could not create its cve/<id> branch nor commit+push its fix.
+//
+// Fix: before a `subagent` tool call runs, set PI_CVE_MODE=patch on this process's environment. Child
+// processes spawned by the subagent tool inherit the parent environment, so the child pi's ci-guard
+// resolves the mode from PI_CVE_MODE (see cve/policy.ts resolveMode) and runs in patch mode: writes are
+// restricted to targets/ + reports/ and the git patch tools are allowed. The explicit --cve-mode flag,
+// when present, always overrides this env fallback.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
-	// Hook into tool execution BEFORE the native subagent tool runs.
-	// We intercept the call, add --cve-mode patch to the agent's args, then let it proceed.
-	pi.on("tool_call", async (event, ctx) => {
-		if (event.toolName !== "subagent") return;
-
-		const input = event.input as Record<string, unknown>;
-
-		// Inject --cve-mode patch into the subagent invocation.
-		// The subagent tool implementation uses pi.run with customArgs; we prepend our flag.
-		// This is a HARDCODED approach: all subagents spawned from this project run in patch mode.
-
-		// HACK: Modify the input to include extra args (if the tool implementation supports it).
-		// The native subagent tool doesn't expose a way to inject CLI flags directly.
-		// WORKAROUND: We patch the environment to signal the child pi instance.
-		// The child pi will read CVE_MODE from env and apply it as --cve-mode.
-
-		// Set an environment variable that the child pi can read.
-		if (!process.env.CVE_MODE) {
-			process.env.CVE_MODE = "patch";
-		}
-
-		// NOTE: This relies on the child pi reading CVE_MODE and converting it to --cve-mode.
-		// If the native subagent doesn't support this, we need to REPLACE the tool entirely.
-		// For /qnd, we assume this works or document it in DEUDA.
-	});
+  pi.on("tool_call", async (event) => {
+    if (event.toolName !== "subagent") return;
+    // Spawned subagents inherit this; set it so the child pi runs in patch mode.
+    process.env.PI_CVE_MODE = "patch";
+  });
 }

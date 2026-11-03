@@ -91,14 +91,49 @@ export async function cveBranch(id: string, io: Io): Promise<{ branch: string }>
 
 /** cve_commit_push: commits targets/ and reports/ on cve/<id> and tries to push; git errors come back as text. */
 export async function cveCommitPush(id: string, message: string, io: Io): Promise<CommitPushResult> {
-  // Quick & dirty: verify fix before pushing (log only, don't block)
+  // Deducir targetPath de archivos modificados en targets/
+  const targetPath = await deduceTargetPath(io);
+  
+  // Verify fix before pushing
+  let verification: { cleared: boolean; testsOk: boolean } | undefined;
   try {
-    const verification = await verifyPatch(id, "targets", io);
+    verification = await verifyPatch(id, targetPath, io);
     console.error(`[verify] CVE ${id}: cleared=${verification.cleared}, testsOk=${verification.testsOk}`);
   } catch (err) {
     console.error(`[verify] CVE ${id}: verification failed:`, err);
   }
+  
+  // Modo strict: bloquear push si la verificación falla
+  if (io.env.CVE_VERIFY_STRICT === "1") {
+    if (!verification || !verification.cleared || !verification.testsOk) {
+      const reason = !verification ? "verification crashed" :
+                     !verification.cleared ? "CVE still present" :
+                     "tests failed";
+      return {
+        committed: false,
+        pushed: false,
+        error: `CVE_VERIFY_STRICT blocked push: ${reason}`,
+      };
+    }
+  }
+  
   return commitAndPush(id, message, io.cwd, io.git, (d) => io.dirExists(resolve(io.cwd, d)));
+}
+
+/** deduceTargetPath: intenta inferir el target modificado; fallback a 'targets'. */
+export async function deduceTargetPath(io: Io): Promise<string> {
+  try {
+    const status = await io.git(["status", "--porcelain"], io.cwd);
+    if (!status?.stdout) return "targets";
+    const lines = status.stdout.split("\n");
+    for (const line of lines) {
+      const match = line.match(/^.{3}(targets\/[^\/]+)\//); // targets/vuln-app/...
+      if (match) return match[1];
+    }
+  } catch (err) {
+    console.error("[deduceTargetPath] git status failed:", err);
+  }
+  return "targets"; // fallback
 }
 
 // Writes reports/cve/<id>.<ext>, re-checking containment because reports/ may be a symlink.
@@ -126,11 +161,26 @@ export function runTargetTests(targetPath: string, io: Io): { ran: boolean; ok: 
   const pkg = JSON.parse(io.readFile(pkgPath));
   if (!pkg.scripts?.test) return { ran: false, ok: true };
   try {
-    const output = execSync("npm test", { cwd: resolve(io.cwd, targetPath), encoding: "utf8", stdio: "pipe" });
-    return { ran: true, ok: true, output };
+    const { spawnSync } = require("node:child_process");
+    const result = spawnSync("npm", ["test"], {
+      cwd: resolve(io.cwd, targetPath),
+      encoding: "utf8",
+      timeout: 120000, // 120s timeout
+      stdio: "pipe",
+    });
+    const output = (result.stdout || "") + (result.stderr || "");
+    const truncated = truncateOutput(output, 4096);
+    return { ran: true, ok: result.status === 0, output: truncated };
   } catch (err: any) {
-    return { ran: true, ok: false, output: err.stdout || err.stderr || String(err) };
+    return { ran: true, ok: false, output: String(err) };
   }
+}
+
+/** truncateOutput: limita la salida a maxBytes con indicador de truncamiento. */
+export function truncateOutput(output: string, maxBytes: number): string {
+  if (output.length <= maxBytes) return output;
+  const half = Math.floor((maxBytes - 50) / 2);
+  return output.slice(0, half) + "\n\n[... truncated ...]\n\n" + output.slice(-half);
 }
 
 /** verifyPatch: combines verifyFix + runTargetTests for a complete post-patch check. */

@@ -6,7 +6,7 @@ import { type ExtensionAPI, isToolCallEventType } from "@earendil-works/pi-codin
 import { Type } from "typebox";
 import { registerCveTools } from "./cve/register.ts";
 import { checkInside } from "./cve/fsguard.ts";
-import { decide, parseMode, writeRoots } from "./cve/policy.ts";
+import { decide, resolveMode, writeRoots } from "./cve/policy.ts";
 
 export default function (pi: ExtensionAPI) {
   // API: registerFlag(name, { type: "string" }) here, read with getFlag(name) at call time (CLI: --cve-mode <value>).
@@ -16,7 +16,9 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    const mode = parseMode(pi.getFlag("cve-mode"));
+    // Mode resolution: the --cve-mode flag wins; if absent, fall back to PI_CVE_MODE (how the mode
+    // is propagated to spawned subagents, see extensions/subagent-cve.ts).
+    const mode = resolveMode(pi.getFlag("cve-mode"), process.env.PI_CVE_MODE);
     const input = event.input as Record<string, unknown>;
     let blockReason: string | undefined = decide(mode, event.toolName, input).reason;
 

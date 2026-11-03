@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { collectPinned, parseDeps, parseLock } from "../.pi/extensions/cve/deps.ts";
 import { branchFor, isCveBranch, normalizeAdvisoryId } from "../.pi/extensions/cve/ids.ts";
 import { buildBatchPayload, parseBatchResponse, summarizeVuln } from "../.pi/extensions/cve/osv.ts";
-import { decide, parseMode, writeRoots } from "../.pi/extensions/cve/policy.ts";
+import { decide, parseMode, resolveMode, writeRoots } from "../.pi/extensions/cve/policy.ts";
 import { applyBudget, truncate } from "../.pi/extensions/cve/truncate.ts";
 
 describe("ids", () => {
@@ -136,6 +136,20 @@ describe("policy", () => {
     assert.equal(parseMode("investigate"), "investigate");
     assert.equal(parseMode("PATCH"), "invalid");
     assert.equal(parseMode(true), "invalid");
+  });
+
+  it("resolveMode: flag wins, PI_CVE_MODE env is the fallback (subagent propagation)", () => {
+    // explicit flag always wins
+    assert.equal(resolveMode("investigate", "patch"), "investigate");
+    assert.equal(resolveMode("patch", undefined), "patch");
+    // no flag -> fall back to env (this is how spawned subagents get patch mode)
+    assert.equal(resolveMode(undefined, "patch"), "patch");
+    assert.equal(resolveMode("", "investigate"), "investigate");
+    assert.equal(resolveMode(false, "patch"), "patch");
+    // neither -> default
+    assert.equal(resolveMode(undefined, undefined), "default");
+    // garbage env -> invalid (everything mutating blocked)
+    assert.equal(resolveMode(undefined, "bogus"), "invalid");
   });
   it("write roots per mode", () => {
     // default now restricts to targets/+reports/ (same as patch)

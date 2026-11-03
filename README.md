@@ -1,5 +1,7 @@
 # pi-poc-ci
 
+![Security Status](site/security-badge.svg)
+
 Proof of concept: customizing the [pi](https://github.com/earendil-works/pi) coding agent for CI/CD, with a CVE investigation and patch workflow.
 
 ## Layers
@@ -63,6 +65,21 @@ scripts/bob.sh review security          # repo review; VERDICT exit code
 npm test          # 36 unit tests (node:test, no network)
 node test/online.smoke.ts   # optional live OSV check
 ```
+
+## Security report
+
+Generate a consolidated HTML report from CVE scan results:
+
+```bash
+node scripts/security-report.mjs
+```
+
+Opens `site/report.html` — a shareable, self-contained security dashboard with:
+- KPIs: total CVEs found, patched, severity breakdown
+- Full CVE table with links to OSV advisories
+- Tool usage and model stats
+
+A `site/security-badge.svg` shield is also generated (red if critical CVEs, green otherwise).
 
 ## Original CI demo
 

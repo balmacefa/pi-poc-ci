@@ -10,11 +10,16 @@ const FIXTURES_DIR = "fixtures/osv";
 
 type CacheMode = "live" | "record" | "replay" | "offline";
 
-function getCacheMode(): CacheMode {
+// Cache the mode once at module load
+const CACHE_MODE: CacheMode = (() => {
   const mode = process.env.PI_OSV_MODE?.toLowerCase();
   if (mode === "offline") return "replay";
   if (mode === "record" || mode === "replay") return mode;
   return "live";
+})();
+
+function getCacheMode(): CacheMode {
+  return CACHE_MODE;
 }
 
 function cacheKey(url: string, body?: string): string {
@@ -32,9 +37,16 @@ function createCachingFetch(fetchFn: FetchLike): FetchLike {
 
     if (mode === "replay") {
       if (!fs.existsSync(fixturePath)) {
+        console.error(`[osv:${mode}] miss ${key}`);
         throw new Error(`OSV cache miss: ${fixturePath} not found (mode=replay)`);
       }
-      const cached = JSON.parse(fs.readFileSync(fixturePath, "utf-8"));
+      let cached;
+      try {
+        cached = JSON.parse(fs.readFileSync(fixturePath, "utf-8"));
+      } catch (err) {
+        throw new Error(`OSV fixture corrupto: ${fixturePath}`);
+      }
+      console.error(`[osv:${mode}] hit ${key}`);
       return {
         ok: cached.ok,
         status: cached.status,
@@ -50,6 +62,7 @@ function createCachingFetch(fetchFn: FetchLike): FetchLike {
       fixturePath,
       JSON.stringify({ ok: res.ok, status: res.status, body }, null, 2),
     );
+    console.error(`[osv:${mode}] record ${key}`);
     return {
       ok: res.ok,
       status: res.status,

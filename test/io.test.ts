@@ -177,6 +177,7 @@ describe("actions", () => {
     const io = makeIo({
       git: async (a) => {
         seen.push(a);
+        if (a[0] === "status") return ok(" M targets/vuln-app/package.json\n");
         if (a[0] === "rev-parse") return ok("cve/CVE-2019-10744\n");
         if (a[0] === "push") return fail("fatal: 'origin' does not appear to be a git repository");
         return ok("[cve/CVE-2019-10744 abc] fix\n");
@@ -185,8 +186,9 @@ describe("actions", () => {
     const res = await cveCommitPush("CVE-2019-10744", "fix lodash", io);
     assert.equal(res.ok, false);
     assert.match(res.steps.join("\n"), /does not appear to be a git repository/);
-    assert.deepEqual(seen[1], ["add", "--", "targets", "reports"]);
-    assert.deepEqual(seen[2], ["commit", "-m", "fix lodash", "--", "targets", "reports"]);
-    assert.deepEqual(seen[3], ["push", "-u", "origin", "cve/CVE-2019-10744"]);
+    // Ahora seen[0] es status, seen[1] es rev-parse, seen[2] es add, etc.
+    assert.deepEqual(seen[2], ["add", "--", "targets", "reports"]);
+    assert.deepEqual(seen[3], ["commit", "-m", "fix lodash", "--", "targets", "reports"]);
+    assert.deepEqual(seen[4], ["push", "-u", "origin", "cve/CVE-2019-10744"]);
   });
 });

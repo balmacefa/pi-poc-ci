@@ -19,6 +19,17 @@ export function parseMode(flag: unknown): Mode {
   return "invalid";
 }
 
+/**
+ * Resolves the effective mode: the explicit --cve-mode flag wins; if absent, falls back to the
+ * PI_CVE_MODE env var. This is how the mode is propagated to spawned subagents (the subagent-cve
+ * hook sets PI_CVE_MODE=patch before a subagent spawns, so the child pi inherits patch mode and can
+ * use cve_branch / cve_commit_push and write under targets/). The flag always overrides the env.
+ */
+export function resolveMode(flag: unknown, env?: string): Mode {
+  const hasFlag = !(flag === undefined || flag === false || flag === "");
+  return parseMode(hasFlag ? flag : env);
+}
+
 /** Directories (relative to the project) where edit/write are allowed in a mode. */
 export function writeRoots(mode: Mode): string[] {
   switch (mode) {
