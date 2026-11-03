@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CVE Swarm: Un enjambre de subagentes de IA que clasifica, corrige y reporta CVEs en tu repositorio de forma automática y eficiente.">
+    <title>CVE Swarm - Gestión automatizada de CVEs con IA</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="hero">
+        <div class="container">
+            <h1 class="hero-title">CVE Swarm</h1>
+            <p class="hero-tagline">Un enjambre de subagentes de IA que clasifica, corrige y reporta CVEs en tu repo</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="workflow">
+            <div class="container">
+                <h2>Cómo funciona</h2>
+                <p class="section-intro">Un flujo coordinado de agentes especializados que trabajan en paralelo para gestionar vulnerabilidades</p>
+                
+                <div class="flow">
+                    <div class="flow-step">
+                        <div class="step-number">1</div>
+                        <h3>cve-scout</h3>
+                        <p>Clasifica los CVEs según su origen: dependencias del proyecto vs. imagen base del contenedor</p>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-parallel">
+                        <div class="flow-step">
+                            <div class="step-number">2a</div>
+                            <h3>cve-fixer</h3>
+                            <p>Corrige vulnerabilidades en las dependencias del proyecto</p>
+                        </div>
+
+                        <div class="flow-step">
+                            <div class="step-number">2b</div>
+                            <h3>hefesto</h3>
+                            <p>Corrige vulnerabilidades en el código fuente</p>
+                        </div>
+
+                        <div class="flow-step">
+                            <div class="step-number">2c</div>
+                            <h3>base-reporter</h3>
+                            <p>Genera reportes de vulnerabilidades en la imagen base</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flow-step">
+                        <div class="step-number">3</div>
+                        <h3>cve-reviewer</h3>
+                        <p>Verifica y valida todas las correcciones aplicadas</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="benchmarks">
+            <div class="container">
+                <h2>Benchmarks</h2>
+                <p class="section-intro">Demostraciones del flujo en escenarios reales</p>
+                
+                <div class="benchmark-grid">
+                    <article class="benchmark-card">
+                        <h3>demo-swarm</h3>
+                        <p class="benchmark-desc">Demostración completa del flujo de clasificación y corrección</p>
+                        <ul class="benchmark-features">
+                            <li>Clasificación de CVEs en dependencias</li>
+                            <li>Clasificación de CVEs en imagen base</li>
+                            <li>Generación de reportes diferenciados</li>
+                        </ul>
+                    </article>
+
+                    <article class="benchmark-card">
+                        <h3>code-fix-demo</h3>
+                        <p class="benchmark-desc">Corrección simultánea de código y dependencias</p>
+                        <ul class="benchmark-features">
+                            <li>Fix automatizado de código vulnerable</li>
+                            <li>Actualización de dependencias con CVEs</li>
+                            <li>Validación de correcciones aplicadas</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Hecho por <a href="https://github.com/balmacefa" target="_blank" rel="noopener noreferrer">balmacefa</a></p>
+        </div>
+    </footer>
+</body>
+</html>
