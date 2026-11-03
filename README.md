@@ -9,7 +9,7 @@ Proof of concept: customizing the [pi](https://github.com/earendil-works/pi) cod
 | Settings | `.pi/settings.json` | Gemini flash by default; Claude and Gemini models in the Ctrl+P cycle; limited tools; retries |
 | Instructions | `AGENTS.md`, `.pi/APPEND_SYSTEM.md` | Repo rules and non-interactive CI behavior (`VERDICT:` line) |
 | Prompt templates | `.pi/prompts/` | `/review`, `/cve-investigate`, `/cve-patch` |
-| Skills | `.pi/skills/` | `ci-triage` plus the author's `idea-a-producto-publicado`, `production-audit`, `ce-optimize` |
+| Skills | `.pi/skills/` | `ci-triage` (CVE triage helper) |
 | MCP | `.pi/mcp.json` | Filesystem server, disabled by default |
 | Extension | `.pi/extensions/ci-guard.ts`, `.pi/extensions/cve/` | Path guard, audit log, modes, `cve_*` tools |
 
@@ -33,7 +33,7 @@ Proof of concept: customizing the [pi](https://github.com/earendil-works/pi) cod
 | `patch` | `targets/`, `reports/` | blocked; never touches `main` |
 
 ```bash
-export PI_CLI="node C:/Users/fabia/pi-harness-src/packages/coding-agent/dist/bundle/cli.js"
+export PI_CLI="node /path/to/pi-harness-src/packages/coding-agent/dist/bundle/cli.js"
 scripts/cve.sh investigate                 # scan, read past fixes, download details, write reports/
 scripts/cve.sh patch GHSA-xxxx-xxxx-xxxx   # fix on branch cve/<id> and push it to origin
 PI_MODEL_ARGS="--provider anthropic --model claude-haiku-4-5" scripts/cve.sh investigate
