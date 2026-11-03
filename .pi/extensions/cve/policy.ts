@@ -23,12 +23,9 @@ export function parseMode(flag: unknown): Mode {
 export function writeRoots(mode: Mode): string[] {
   switch (mode) {
     case "default":
-      // NOTA (temporal): guards abiertos para el enjambre de subagentes.
-      // Los subagentes spawnean `pi` SIN --cve-mode, por lo que corren en modo "default".
-      // Para que puedan parchear targets/ y escribir reports/ se abre el proyecto completo ("").
-      // Los modos CVE (investigate/patch) siguen restringidos igual que antes.
-      // RE-ENDURECER cuando se implemente la propagacion de --cve-mode a los subagentes.
-      return [""];
+      // Guards re-endurecidos: default ahora limita a targets/ + reports/ (igual que patch).
+      // Para propagar --cve-mode a subagentes ver DEUDA más abajo.
+      return ["targets", "reports"];
     case "investigate":
       return ["reports"];
     case "patch":
@@ -47,13 +44,7 @@ export function decide(mode: Mode, toolName: string, input: Record<string, unkno
     }
     return { block: false };
   }
-  if (mode === "default") {
-    // NOTA (temporal): se permiten tambien las herramientas cve_* en modo default,
-    // para que los subagentes del enjambre (sin --cve-mode) puedan escanear/reportar.
-    // RE-ENDURECER junto con la propagacion de --cve-mode. Los modos CVE no cambian.
-    return { block: false };
-  }
-  if (SHELL_TOOLS.has(toolName)) return deny(`${toolName} is not allowed in ${mode} mode`);
+  // PATCH_ONLY tools are blocked outside patch mode (including default).
   if (PATCH_ONLY.has(toolName)) {
     if (mode !== "patch") return deny(`${toolName} is only allowed in patch mode`);
     if (branchFor(input.id) === undefined) {
@@ -64,6 +55,12 @@ export function decide(mode: Mode, toolName: string, input: Record<string, unkno
     }
     return { block: false };
   }
+  if (mode === "default") {
+    // Se permiten herramientas cve_* READ-ONLY en modo default para subagentes.
+    // writeRoots ya está restringido a targets/+reports/.
+    return { block: false };
+  }
+  if (SHELL_TOOLS.has(toolName)) return deny(`${toolName} is not allowed in ${mode} mode`);
   if ((toolName === "cve_details" || toolName === "cve_report") && normalizeAdvisoryId(input.id) === undefined) {
     return deny(`invalid advisory id ${JSON.stringify(input.id)}`);
   }

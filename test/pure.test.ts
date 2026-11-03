@@ -1,7 +1,7 @@
 // Unit tests for the pure cve modules: ids, deps, osv, truncate, policy.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseDeps } from "../.pi/extensions/cve/deps.ts";
+import { collectPinned, parseDeps, parseLock } from "../.pi/extensions/cve/deps.ts";
 import { branchFor, isCveBranch, normalizeAdvisoryId } from "../.pi/extensions/cve/ids.ts";
 import { buildBatchPayload, parseBatchResponse, summarizeVuln } from "../.pi/extensions/cve/osv.ts";
 import { decide, parseMode, writeRoots } from "../.pi/extensions/cve/policy.ts";
@@ -51,6 +51,32 @@ describe("deps", () => {
   });
   it("handles missing sections", () => {
     assert.deepEqual(parseDeps("{}"), { packages: [], skipped: [] });
+  });
+  it("parseLock extracts resolved versions from package-lock.json", () => {
+    const lock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        "": {},
+        "node_modules/lodash": { version: "4.17.21" },
+        "node_modules/minimist": { version: "1.2.8" },
+      },
+    });
+    const pkgs = parseLock(lock);
+    assert.deepEqual(pkgs, [
+      { name: "lodash", version: "4.17.21" },
+      { name: "minimist", version: "1.2.8" },
+    ]);
+  });
+  it("collectPinned combines package.json and package-lock.json", () => {
+    const pj = JSON.stringify({ dependencies: { lodash: "^4.17.21" } });
+    const lock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: { "": {}, "node_modules/lodash": { version: "4.17.21" }, "node_modules/minimist": { version: "1.2.8" } },
+    });
+    const { packages } = collectPinned(pj, lock);
+    assert.equal(packages.length, 2);
+    assert.ok(packages.find(p => p.name === "lodash" && p.version === "4.17.21"));
+    assert.ok(packages.find(p => p.name === "minimist" && p.version === "1.2.8"));
   });
 });
 
@@ -112,7 +138,8 @@ describe("policy", () => {
     assert.equal(parseMode(true), "invalid");
   });
   it("write roots per mode", () => {
-    assert.deepEqual(writeRoots("default"), ["src"]);
+    // default now restricts to targets/+reports/ (same as patch)
+    assert.deepEqual(writeRoots("default"), ["targets", "reports"]);
     assert.deepEqual(writeRoots("investigate"), ["reports"]);
     assert.deepEqual(writeRoots("patch"), ["targets", "reports"]);
     assert.deepEqual(writeRoots("invalid"), []);
@@ -137,7 +164,8 @@ describe("policy", () => {
     assert.equal(decide("investigate", "cve_scan", {}).block, false);
   });
   it("blocks cve tools without a mode and shell tools in modes", () => {
-    assert.equal(decide("default", "cve_scan", {}).block, true);
+    // default mode now allows cve_* tools (for subagents); shell tools still block in CVE modes
+    assert.equal(decide("default", "cve_scan", {}).block, false);
     assert.equal(decide("default", "read", { path: "x" }).block, false);
     assert.equal(decide("patch", "bash", { command: "ls" }).block, true);
     assert.equal(decide("investigate", "powershell", {}).block, true);

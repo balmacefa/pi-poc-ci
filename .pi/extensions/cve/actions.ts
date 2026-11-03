@@ -1,4 +1,5 @@
 // Implementations of the cve_* tools with injected IO (fs, fetch, git), free of any pi imports.
+import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseDeps } from "./deps.ts";
@@ -89,7 +90,14 @@ export async function cveBranch(id: string, io: Io): Promise<{ branch: string }>
 }
 
 /** cve_commit_push: commits targets/ and reports/ on cve/<id> and tries to push; git errors come back as text. */
-export function cveCommitPush(id: string, message: string, io: Io): Promise<CommitPushResult> {
+export async function cveCommitPush(id: string, message: string, io: Io): Promise<CommitPushResult> {
+  // Quick & dirty: verify fix before pushing (log only, don't block)
+  try {
+    const verification = await verifyPatch(id, "targets", io);
+    console.error(`[verify] CVE ${id}: cleared=${verification.cleared}, testsOk=${verification.testsOk}`);
+  } catch (err) {
+    console.error(`[verify] CVE ${id}: verification failed:`, err);
+  }
   return commitAndPush(id, message, io.cwd, io.git, (d) => io.dirExists(resolve(io.cwd, d)));
 }
 
@@ -100,6 +108,40 @@ function writeReport(io: Io, id: string, ext: "json" | "md", text: string): stri
   if (blocked) throw new Error(blocked);
   io.writeFile(resolve(io.cwd, rel), text);
   return rel;
+}
+
+/** verifyFix: re-scans the target package and returns true if the CVE id no longer appears. */
+export async function verifyFix(id: string, targetPath: string, io: Io): Promise<{ cleared: boolean }> {
+  const cleanId = normalizeAdvisoryId(id);
+  if (cleanId === undefined) throw new Error(`invalid advisory id: ${JSON.stringify(id)}`);
+  const scan = await cveScan(targetPath, io);
+  const stillPresent = scan.vulnerable.some((r) => r.vulnIds.includes(cleanId));
+  return { cleared: !stillPresent };
+}
+
+/** runTargetTests: runs npm test in targetPath if package.json has a test script. */
+export function runTargetTests(targetPath: string, io: Io): { ran: boolean; ok: boolean; output?: string } {
+  const pkgPath = resolve(io.cwd, targetPath, "package.json");
+  if (!existsSync(pkgPath)) return { ran: false, ok: true };
+  const pkg = JSON.parse(io.readFile(pkgPath));
+  if (!pkg.scripts?.test) return { ran: false, ok: true };
+  try {
+    const output = execSync("npm test", { cwd: resolve(io.cwd, targetPath), encoding: "utf8", stdio: "pipe" });
+    return { ran: true, ok: true, output };
+  } catch (err: any) {
+    return { ran: true, ok: false, output: err.stdout || err.stderr || String(err) };
+  }
+}
+
+/** verifyPatch: combines verifyFix + runTargetTests for a complete post-patch check. */
+export async function verifyPatch(
+  id: string,
+  targetPath: string,
+  io: Io,
+): Promise<{ cleared: boolean; testsOk: boolean }> {
+  const fix = await verifyFix(id, targetPath, io);
+  const tests = runTargetTests(targetPath, io);
+  return { cleared: fix.cleared, testsOk: tests.ok };
 }
 
 // The repo argument must be a path inside the project or exactly the CVE_REFERENCE_REPO env var.
